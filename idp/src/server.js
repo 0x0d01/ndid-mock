@@ -126,7 +126,8 @@ app.post('/callback/idp/identity', async (req, res) => {
           accessor_public_key,
           ial,
           aal,
-          response
+          response,
+          delay
         } = db.getReference(callbackData.reference_id);
         db.addUser(namespace, identifier, {
           accessors: [
@@ -139,7 +140,8 @@ app.post('/callback/idp/identity', async (req, res) => {
           ],
           ial,
           aal,
-          response
+          response,
+          delay
         });
       }
       db.removeReference(callbackData.reference_id);
@@ -184,8 +186,9 @@ app.post('/callback/idp/response', async (req, res) => {
 
 //////
 
+// delay is in ms
 app.post('/identity', async (req, res) => {
-  const { namespace, identifier, ial, aal, response } = req.body;
+  const { namespace, identifier, ial, aal, response, delay = 0 } = req.body;
   try {
     const sid = namespace + ':' + identifier;
     //gen new key pair
@@ -206,7 +209,8 @@ app.post('/identity', async (req, res) => {
       accessor_public_key,
       ial,
       aal,
-      response
+      response,
+      delay
     });
 
     const { request_id, accessor_id } = await API.createNewIdentity({
@@ -243,6 +247,8 @@ async function createResponse({request_id, namespace, identifier, mode, request_
 
     const reference_id = uuid();
     try {
+      var d = new Date();
+      await new Promise((resolve) => setTimeout(resolve, user.delay || 0));
       await API.createIdpResponse({
         reference_id,
         callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/response`,
@@ -267,6 +273,9 @@ async function createResponse({request_id, namespace, identifier, mode, request_
     const reference_id = uuid();
     
     try {
+      if (user) {
+        await new Promise((resolve) => setTimeout(resolve, user.delay || 0));
+      }
       await API.createIdpResponse({
         reference_id,
         callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/response`,
