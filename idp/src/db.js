@@ -10,6 +10,7 @@ db.defaults({
   references: [],
   users: [],
   requests: [],
+  accessors: [],
   // userCount: 0,
 }).write();
 
@@ -60,7 +61,16 @@ export const getUserByIdentifier = (namespace, identifier) => {
     .value();
 };
 
-export const addUser = (namespace, identifier, data) => {
+export function getUserByReferenceGroupCode(reference_group_code) {
+  return db
+    .get('users')
+    .find({
+      reference_group_code,
+    })
+    .value();
+}
+
+export const addUser = (namespace, identifier, reference_group_code, data) => {
   let checkUser = getUserByIdentifier(namespace, identifier);
   if (checkUser && checkUser.id) return 0;
   const id = `${namespace}-${identifier}`;
@@ -69,6 +79,7 @@ export const addUser = (namespace, identifier, data) => {
       id,
       namespace,
       identifier,
+      reference_group_code,
       ...data,
     })
     .write();
@@ -90,3 +101,21 @@ export const removeUser = (namespace, identifier) => {
     })
     .write();
 };
+
+export function getAccessor(accessorId) {
+  return db
+    .get('accessors')
+    .find({
+      accessorId,
+    })
+    .value();
+}
+
+export function addAccessor(accessorId, accessorData) {
+  db.get('accessors')
+    .push({
+      accessorId,
+      ...accessorData,
+    })
+    .write();
+}

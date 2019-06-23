@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import * as config from './config';
 
-const apiBaseUrl = config.apiServerAddress + '/v2';
+const apiBaseUrl = config.apiServerAddress + '/v3';
 
 function logResponse(url, method, status, body, error) {
   console.log(
@@ -75,24 +75,18 @@ export async function httpPost(url, body, expectResponseBody) {
   }
 }
 
-export function registerAccessorCallback(url) {
-  return httpPost(`${apiBaseUrl}/idp/accessor/callback`, {
-    url,
-  });
-}
-
 export function getCallbackUrls() {
   return httpGet(`${apiBaseUrl}/idp/callback`);
 }
 
 export function setCallbackUrls({
   incoming_request_url,
-  accessor_sign_url,
+  accessor_encrypt_url,
   error_url,
 }) {
   return httpPost(`${apiBaseUrl}/idp/callback`, {
     incoming_request_url,
-    accessor_sign_url,
+    accessor_encrypt_url,
     error_url,
   });
 }
@@ -138,7 +132,7 @@ export function addAccessor(data) {
 }
 
 export function setDpkiCallbackUrl({ sign_url, master_sign_url, decrypt_url }) {
-  return httpPost(`${apiBaseUrl}/dpki/node/callback`, {
+  return httpPost(`${apiBaseUrl}/node/callback`, {
     sign_url,
     master_sign_url,
     decrypt_url,

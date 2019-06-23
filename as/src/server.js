@@ -16,10 +16,12 @@ const path = require('path');
 
 const SERVICES_JSON_PATH = path.join(config.DATA_BASE_PATH, 'services.json');
 const DELAY_JSON_PATH = path.join(config.DATA_BASE_PATH, 'delay.json');
+const SUPPORTED_NAMESPACES = path.join(config.DATA_BASE_PATH, 'namespaces.json');
 const serviceIDs = JSON.parse(fs.readFileSync(SERVICES_JSON_PATH, 'utf8')).services.reduce((pv, v) => {
   pv[v] = false; 
   return pv; 
 }, {});
+const supportedNamespaces = JSON.parse(fs.readFileSync(SUPPORTED_NAMESPACES, 'utf8')).namespaces;
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false, limit: '2mb' }));
@@ -41,6 +43,7 @@ app.use(morgan('combined'));
           min_ial: config.minIAL,
           min_aal: config.minAAL,
           url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/as/service/${serviceID}`,
+          supported_namespace_list: supportedNamespaces,
         });
         serviceIDs[serviceID] = true;
       } catch (error) {

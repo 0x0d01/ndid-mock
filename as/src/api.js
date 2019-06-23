@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import * as config from './config';
 
-const apiBaseUrl = config.apiServerAddress + '/v2';
+const apiBaseUrl = config.apiServerAddress + '/v3';
 
 function logResponse(url, method, status, body, error) {
   console.log(
@@ -96,6 +96,7 @@ export function registerAsService({
   min_ial,
   min_aal,
   url,
+  supported_namespace_list,
 }) {
   return httpPost(`${apiBaseUrl}/as/service/${service_id}`, {
     reference_id,
@@ -104,6 +105,7 @@ export function registerAsService({
     min_ial,
     min_aal,
     url,
+    supported_namespace_list,
   });
 }
 

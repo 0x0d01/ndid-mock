@@ -10,7 +10,7 @@ import * as API from './api';
 
 import * as db from './db';
 import fs from 'fs';
-import * as zkProof from './zkProof';
+import * as utils from './utils';
 import { spawnSync } from 'child_process';
 
 import * as config from './config';
@@ -53,7 +53,7 @@ if (
     try {
       await API.setCallbackUrls({
         incoming_request_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/request`,
-        accessor_sign_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/accessor`,
+        accessor_encrypt_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/accessor/encrypt`,
         error_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/error`,
       });
       console.log('=== callback set OK ===');
@@ -127,21 +127,21 @@ app.post('/callback/idp/identity', async (req, res) => {
           ial,
           aal,
           response,
+          mode,
           delay
         } = db.getReference(callbackData.reference_id);
-        db.addUser(namespace, identifier, {
-          accessors: [
-            {
-              accessor_id,
-              accessor_private_key,
-              accessor_public_key,
-              secret: callbackData.secret,
-            },
-          ],
+        db.addUser(namespace, identifier, callbackData.reference_group_code, {
+          accessorIds: [accessor_id],
           ial,
           aal,
           response,
+          mode,
           delay
+        });
+        db.addAccessor(accessor_id, {
+          reference_group_code: callbackData.reference_group_code,
+          accessor_private_key,
+          accessor_public_key,
         });
       }
       db.removeReference(callbackData.reference_id);
@@ -156,12 +156,15 @@ app.post('/callback/idp/identity', async (req, res) => {
   }
 });
 
-app.post('/callback/idp/accessor', async (req, res) => {
+app.post('/callback/idp/accessor/encrypt', async (req, res) => {
   try {
-    let { sid, accessor_id, reference_id } = req.body;
-    const { accessor_private_key } = db.getReference(reference_id);
-    res.status(200).send({
-      signature: zkProof.signMessage(sid, accessor_private_key),
+    let { accessor_id, request_message_padded_hash } = req.body;
+    const { accessor_private_key } = db.getAccessor(accessor_id);
+    res.status(200).json({
+      signature: utils.createResponseSignature(
+        accessor_private_key,
+        request_message_padded_hash
+      ),
     });
   } catch (error) {
     console.error(error);
@@ -187,12 +190,13 @@ app.post('/callback/idp/response', async (req, res) => {
 //////
 
 app.post('/updateIdentity', async (req, res) => {
-  const { namespace, identifier, ial, aal, response, delay = 0 } = req.body;
+  const { namespace, identifier, ial, aal, response, mode, delay = 0 } = req.body;
   try {
     db.updateUser(namespace, identifier, {
       ial,
       aal,
       response,
+      mode,
       delay
     });
     res.status(200).end();
@@ -204,11 +208,11 @@ app.post('/updateIdentity', async (req, res) => {
 
 // delay is in ms
 app.post('/identity', async (req, res) => {
-  const { namespace, identifier, ial, aal, response, delay = 0 } = req.body;
+  const { namespace, identifier, ial, aal, response, mode, delay = 0 } = req.body;
   try {
     const sid = namespace + ':' + identifier;
     //gen new key pair
-    zkProof.genNewKeyPair(sid);
+    utils.genNewKeyPair(sid);
 
     const accessor_public_key = fs.readFileSync(
       config.keyPath + sid + '.pub',
@@ -226,14 +230,20 @@ app.post('/identity', async (req, res) => {
       ial,
       aal,
       response,
+      mode,
       delay
     });
 
     const { request_id, accessor_id } = await API.createNewIdentity({
       reference_id,
       callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/identity`,
-      namespace,
-      identifier,
+      identity_list: [
+        {
+          namespace,
+          identifier,
+        },
+      ],
+      mode,
       accessor_type: 'RSA',
       accessor_public_key,
       //accessor_id,
@@ -254,9 +264,11 @@ app.post('/identity', async (req, res) => {
   }
 });
 
-async function createResponse({request_id, namespace, identifier, mode, request_message_hash, min_ial, min_aal}) {
-  const user = db.getUserByIdentifier(namespace, identifier);
-  if (mode === 3) {
+async function createResponse({request_id, namespace, identifier, reference_group_code, mode, min_ial, min_aal}) {
+  const user = reference_group_code ? 
+    db.getUserByReferenceGroupCode(reference_group_code) :
+    db.getUserByIdentifier(namespace, identifier);
+  if (mode === 3 || mode === 2) {
     if (!user) {
       throw new Error('User is not found: ' + namespace + '/' + identifier);
     }
@@ -272,13 +284,8 @@ async function createResponse({request_id, namespace, identifier, mode, request_
         identifier: user.identifier,
         ial: user.ial,
         aal: user.aal,
-        secret: user.accessors[0].secret,
         status: user.response, // 'accept' or 'reject'
-        signature: zkProof.privateEncrypt(
-          request_message_hash,
-          user.accessors[0].accessor_private_key
-        ),
-        accessor_id: user.accessors[0].accessor_id,
+        accessor_id: user.accessorIds[0],
       });
       return reference_id;
     } catch (error) {
@@ -300,7 +307,6 @@ async function createResponse({request_id, namespace, identifier, mode, request_
         ial: user ? user.ial : min_ial,
         aal: user ? user.aal : min_aal,
         status: user ? user.response : 'accept',
-        signature: 'this is signature',
       });
       return reference_id;
     } catch (error) {
