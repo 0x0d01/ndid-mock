@@ -186,6 +186,22 @@ app.post('/callback/idp/response', async (req, res) => {
 
 //////
 
+app.post('/updateIdentity', async (req, res) => {
+  const { namespace, identifier, ial, aal, response, delay = 0 } = req.body;
+  try {
+    db.updateUser(namespace, identifier, {
+      ial,
+      aal,
+      response,
+      delay
+    });
+    res.status(200).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json(error.error ? error.error.message : error);
+  }
+});
+
 // delay is in ms
 app.post('/identity', async (req, res) => {
   const { namespace, identifier, ial, aal, response, delay = 0 } = req.body;
@@ -247,8 +263,7 @@ async function createResponse({request_id, namespace, identifier, mode, request_
 
     const reference_id = uuid();
     try {
-      var d = new Date();
-      await new Promise((resolve) => setTimeout(resolve, user.delay || 0));
+      await new Promise((resolve) => setTimeout(resolve, user.delay * 1000 || 0));
       await API.createIdpResponse({
         reference_id,
         callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/response`,
@@ -274,7 +289,7 @@ async function createResponse({request_id, namespace, identifier, mode, request_
     
     try {
       if (user) {
-        await new Promise((resolve) => setTimeout(resolve, user.delay || 0));
+        await new Promise((resolve) => setTimeout(resolve, user.delay * 1000 || 0));
       }
       await API.createIdpResponse({
         reference_id,

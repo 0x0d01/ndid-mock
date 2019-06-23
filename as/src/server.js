@@ -14,9 +14,9 @@ import morgan from 'morgan';
 const fs = require('fs');
 const path = require('path');
 
-const DATA_BASE_PATH = path.join(__dirname, '..', 'data');
-const SERVICE_JSON_PATH = path.join(__dirname, '..', 'data', 'services.json');
-const serviceIDs = JSON.parse(fs.readFileSync(SERVICE_JSON_PATH, 'utf8')).services.reduce((pv, v) => {
+const SERVICES_JSON_PATH = path.join(config.DATA_BASE_PATH, 'services.json');
+const DELAY_JSON_PATH = path.join(config.DATA_BASE_PATH, 'delay.json');
+const serviceIDs = JSON.parse(fs.readFileSync(SERVICES_JSON_PATH, 'utf8')).services.reduce((pv, v) => {
   pv[v] = false; 
   return pv; 
 }, {});
@@ -123,14 +123,24 @@ app.post('/callback/as/data', async (req, res) => {
 async function sendData({ service_id, request_id, namespace, identifier }) {
   const reference_id = uuid();
   let responseData;
+  let delay;
   
   try {
-    responseData = fs.readFileSync(path.join(DATA_BASE_PATH, service_id + '_' + namespace + '_' + identifier + '.json'), 'utf8');
+    responseData = JSON.stringify(JSON.parse(fs.readFileSync(path.join(config.DATA_BASE_PATH, service_id + '_' + namespace + '_' + identifier + '.json'), 'utf8')));
   } catch (error) {
     responseData = 'mock data';
   }
 
   try {
+    delay = JSON.parse(fs.readFileSync(DELAY_JSON_PATH, 'utf8'))[namespace][identifier];
+  } catch (error) {
+    delay = config.defaultDelay;
+  }
+
+  try {
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay * 1000));
+    }
     await API.sendData({
       reference_id,
       callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/as/data`,

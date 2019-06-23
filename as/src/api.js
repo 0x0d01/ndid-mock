@@ -1,9 +1,7 @@
 import fetch from 'node-fetch';
+import * as config from './config';
 
-const apiServerAddress =
-  process.env.API_SERVER_ADDRESS || 'http://localhost:8082';
-
-const apiBaseUrl = apiServerAddress + '/v2';
+const apiBaseUrl = config.apiServerAddress + '/v2';
 
 function logResponse(url, method, status, body, error) {
   console.log(
