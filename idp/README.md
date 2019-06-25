@@ -38,7 +38,13 @@
 ## API
 
 1. `POST /identity`
-  * `{ namespace, identifier, ial, aal, response, delay = 0 } = req.body` (delay in second)
+  * `{ namespace, identifier, ial, aal, response, mode, delay = 0 } = req.body` (delay in second)
 
 2. `POST /updateIdentity`
-  * `{ namespace, identifier, ial, aal, response, delay = 0 } = req.body` (delay in second)
+  * `{ namespace, identifier, aal, response, delay = 0 } = req.body` (delay in second)
+
+3. `POST /updateMode`
+  * `{ namespace, identifier, mode } = req.body`
+
+4. `POST /updateIAL`
+  * `{ namespace, identifier, ial } = req.body`

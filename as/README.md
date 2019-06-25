@@ -59,3 +59,13 @@
       }
     }
     ```
+
+3. `namespaces.json`: list of suported namespaces
+
+    ```
+    {
+      "namespaces": [
+        "citizen_id"
+      ]
+    }
+    ```

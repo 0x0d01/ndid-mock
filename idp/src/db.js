@@ -70,7 +70,7 @@ export function getUserByReferenceGroupCode(reference_group_code) {
     .value();
 }
 
-export const addUser = (namespace, identifier, reference_group_code, data) => {
+export const addUser = (namespace, identifier, data) => {
   let checkUser = getUserByIdentifier(namespace, identifier);
   if (checkUser && checkUser.id) return 0;
   const id = `${namespace}-${identifier}`;
@@ -79,7 +79,6 @@ export const addUser = (namespace, identifier, reference_group_code, data) => {
       id,
       namespace,
       identifier,
-      reference_group_code,
       ...data,
     })
     .write();

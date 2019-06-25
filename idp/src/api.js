@@ -131,6 +131,22 @@ export function addAccessor(data) {
   );
 }
 
+export function updateMode(data) {
+  return httpPost(
+    `${apiBaseUrl}/identity/${data.namespace}/${data.identifier}/mode`,
+    data,
+    true
+  );
+}
+
+export function updateIAL(namespace, identifier, data) {
+  return httpPost(
+    `${apiBaseUrl}/identity/${namespace}/${identifier}/ial`,
+    data,
+    false
+  );
+}
+
 export function setDpkiCallbackUrl({ sign_url, master_sign_url, decrypt_url }) {
   return httpPost(`${apiBaseUrl}/node/callback`, {
     sign_url,

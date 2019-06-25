@@ -159,4 +159,4 @@ async function sendData({ service_id, request_id, namespace, identifier }) {
 const server = http.createServer(app);
 server.listen(config.ndidApiCallbackPort);
 
-console.log('AS Server is running.  Listening to port ${config.ndidApiCallbackPort}`');
+console.log(`AS Server is running.  Listening to port ${config.ndidApiCallbackPort}`);
