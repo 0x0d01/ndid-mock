@@ -1,2 +1,4 @@
 .DS_Store
-persistent_db
+**/persistent_db
+**/node_modules
+**/build
