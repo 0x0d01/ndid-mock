@@ -236,22 +236,6 @@ app.post('/callback/idp/ial', async (req, res) => {
   }
 });
 
-app.post('/callback/idp/accessor/encrypt', async (req, res) => {
-  try {
-    let { accessor_id, request_message_padded_hash } = req.body;
-    const { accessor_private_key } = db.getAccessor(accessor_id);
-    res.status(200).json({
-      signature: utils.createResponseSignature(
-        accessor_private_key,
-        request_message_padded_hash
-      ),
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).end();
-  }
-});
-
 app.post('/callback/idp/response', async (req, res) => {
   try {
     const callbackData = req.body;
@@ -495,17 +479,27 @@ async function createResponse({request_id, namespace, identifier, reference_grou
 
     const reference_id = uuid();
     try {
+      const { request_message_padded_hash } = await API.getRequestMessagePaddedHash(
+        request_id,
+        user.accessorIds[0],
+      );
+
+    const { accessor_private_key } = db.getAccessor(user.accessorIds[0]);
+    const signature = utils.createResponseSignature(
+      accessor_private_key,
+      request_message_padded_hash
+    );
+
       await new Promise((resolve) => setTimeout(resolve, user.delay * 1000 || 0));
       await API.createIdpResponse({
         reference_id,
         callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/response`,
         request_id: request_id,
-        namespace: user.namespace,
-        identifier: user.identifier,
         ial: user.ial,
         aal: user.aal,
         status: user.response, // 'accept' or 'reject'
         accessor_id: user.accessorIds[0],
+        signature,
       });
       return reference_id;
     } catch (error) {
@@ -513,20 +507,21 @@ async function createResponse({request_id, namespace, identifier, reference_grou
     }
   } else {
     const reference_id = uuid();
+    const mockSignature = 'DXdc+d0MybjyJiQ6wChGdGZQXwMoh6EFePbGl1E5DYv0euhPfkauOrpVp99UwcnD00f/lZNXfaCMyJgTY1jRHEodg0WUY6s3UTPvepy9vAmJjLWPTwb7a5gMHfEWApvhi6TTOcIj2ciT62iPotzJIRNtm2Zm12eUJwypfwB0+vCjDNnxn1Uk43/OsHsC/s7kIyI93uzhrApEpI/y3cda0B1SSi+Jc31fPL7aQQm0Xxw3UtrJI8c1ENumZ0BrjtHNPxTruSXtQy6BIhO1srEyTTbVexgiK9mug2fxrblw+eC9vbPlnT1s6aEd/SOBJkujmFrKkco9v2zK642W8TagxQ==';
     
     try {
       if (user) {
         await new Promise((resolve) => setTimeout(resolve, user.delay * 1000 || 0));
       }
+
       await API.createIdpResponse({
         reference_id,
         callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/response`,
         request_id: request_id,
-        namespace: namespace,
-        identifier: identifier,
         ial: user ? user.ial : min_ial,
         aal: user ? user.aal : min_aal,
         status: user ? user.response : 'accept',
+        signature: mockSignature,
       });
       return reference_id;
     } catch (error) {

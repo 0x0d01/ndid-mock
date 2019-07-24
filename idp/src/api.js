@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import * as config from './config';
 
-const apiBaseUrl = config.apiServerAddress + '/v3';
+const apiBaseUrl = config.apiServerAddress + '/v4';
 
 function logResponse(url, method, status, body, error) {
   console.log(
@@ -153,4 +153,10 @@ export function setDpkiCallbackUrl({ sign_url, master_sign_url, decrypt_url }) {
     master_sign_url,
     decrypt_url,
   });
+}
+
+export function getRequestMessagePaddedHash(request_id, accessor_id) {
+  return httpGet(
+    `${apiBaseUrl}/idp/request_message_padded_hash?request_id=${request_id}&accessor_id=${accessor_id}`
+  );
 }

@@ -3,7 +3,7 @@ import * as config from './config';
 
 const apiServerAddress = config.apiServerAddress;
 
-const apiBaseUrl = apiServerAddress + '/v3';
+const apiBaseUrl = apiServerAddress + '/v4';
 
 function logResponse(url, method, status, body, error) {
   console.log(

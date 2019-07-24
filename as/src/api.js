@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import * as config from './config';
 
-const apiBaseUrl = config.apiServerAddress + '/v3';
+const apiBaseUrl = config.apiServerAddress + '/v4';
 
 function logResponse(url, method, status, body, error) {
   console.log(
