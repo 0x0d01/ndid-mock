@@ -73,8 +73,7 @@ app.post('/rp/requests/:namespace/:identifier', async (req, res) => {
 
     res.status(202).json({ request_id: request.request_id, reference_id: referenceId }).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json(error.error ? error.error.message : error).end();
+    handleError(error, res);
   }
 });
 
@@ -83,8 +82,7 @@ app.post('/rp/request_close', async (req, res) => {
     await closeRequest(req.body.request_id);
     res.status(202).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json(error.error ? error.error.message : error).end();
+    handleError(error, res);
   }
 });
 
@@ -93,8 +91,7 @@ app.post('/rp/request_data_removal/:request_id', async (req, res) => {
     await API.removeDataFromAS(req.params.request_id);
     res.status(204).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json(error.error ? error.error.message : error).end();
+    handleError(error, res);
   }
 });
 
@@ -103,8 +100,7 @@ app.post('/utility/private_message_removal/:request_id', async (req, res) => {
     await API.removePrivateMessage(req.params.request_id);
     res.status(204).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json(error.error ? error.error.message : error).end();
+    handleError(error, res);
   }
 });
 
@@ -113,8 +109,7 @@ app.get('/utility/private_messages/:request_id', async (req, res) => {
     const privateMessages = await API.getPrivateMessage(req.params.request_id);
     res.status(200).json(privateMessages).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json(error.error ? error.error.message : error).end();
+    handleError(error, res);
   }
 });
 
@@ -123,8 +118,7 @@ app.get('/rp/request_data/:request_id', async (req, res) => {
     const requestData = await API.getRequestData(req.params.request_id);
     res.status(200).json(requestData).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json(error.error ? error.error.message : error).end();
+    handleError(error, res);
   }
 });
 
@@ -135,8 +129,7 @@ app.post('/rp/request/:referenceId', async (req, res) => {
     processCallback(callbackData);
     res.status(204).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).end();
+    handleError(error, res);
   }
 });
 
@@ -147,12 +140,9 @@ app.post('/rp/request/close', async (req, res) => {
     processCallback(callbackData);
     res.status(204).end();
   } catch (error) {
-    console.error(error);
-    res.status(500).end();
+    handleError(error, res);
   }
 });
-
-const server = http.createServer(app);
 
 async function processCallback(data) {
   if (data.type === 'create_request_result') {
@@ -210,6 +200,25 @@ function closeRequest(requestId) {
   });
 }
 
+function handleError(error, res) {
+  console.error(error);
+  switch (error.constructor.name) {
+    case 'Response':
+      res.status(error.status).end();
+      break;
+
+    case 'Object':
+      res.status(error.status).json(error.body).end();
+      break;
+
+    case 'Error':
+    default:
+      res.status(500).json({ error: error.message }).end();
+      break;
+  }
+}
+
+const server = http.createServer(app);
 server.listen(config.ndidApiCallbackPort);
 
 console.log(`RP Web Server is running. Listening to port ${config.ndidApiCallbackPort}`);

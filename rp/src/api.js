@@ -28,7 +28,7 @@ export async function httpGet(url) {
       if (response.status === 400 || response.status === 500) {
         const errorJson = await response.json();
         logResponse(url, 'GET', response.status, null, errorJson);
-        throw errorJson;
+        throw { status: response.status, body: errorJson };
       }
       throw response;
     }
@@ -61,7 +61,7 @@ export async function httpPost(url, body, expectResponseBody) {
       ) {
         const errorJson = await response.json();
         logResponse(url, 'POST', response.status, null, errorJson);
-        throw errorJson;
+        throw { status: response.status, body: errorJson };
       }
       throw response;
     }
