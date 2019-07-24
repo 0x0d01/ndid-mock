@@ -2,7 +2,7 @@
 
 usage() {
   echo "Usage: $(basename $0) mode"
-  echo "mode = idp|as"
+  echo "mode = idp|rp|as|dpki"
 }
 
 MODE=$1
