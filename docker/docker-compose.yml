@@ -1,7 +1,7 @@
 version: "3"
 services: 
   mock-idp-1:
-    image: ${DOCKER_REPO:-ndidplatform}/mock:latest
+    image: ${DOCKER_REPO:-ndidplatform}/mock:${DOCKER_TAG:-latest}
     environment:
         - API_SERVER_ADDRESS=http://api-idp-1:${API_PORT:-8080}
         - NDID_API_CALLBACK_IP=mock-idp-1
@@ -12,7 +12,7 @@ services:
     networks:
       - ${DOCKER_REPO:-ndidplatform}
   mock-as:
-    image: ${DOCKER_REPO:-ndidplatform}/mock:latest
+    image: ${DOCKER_REPO:-ndidplatform}/mock:${DOCKER_TAG:-latest}
     environment:
         - API_SERVER_ADDRESS=http://api-as:${API_PORT:-8080}
         - NDID_API_CALLBACK_IP=mock-as
@@ -23,7 +23,7 @@ services:
     networks:
       - ${DOCKER_REPO:-ndidplatform}
   mock-rp:
-    image: ${DOCKER_REPO:-ndidplatform}/mock:latest
+    image: ${DOCKER_REPO:-ndidplatform}/mock:${DOCKER_TAG:-latest}
     environment:
         - API_SERVER_ADDRESS=http://api-rp:${API_PORT:-8080}
         - NDID_API_CALLBACK_IP=mock-rp

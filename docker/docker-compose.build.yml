@@ -7,4 +7,4 @@ services:
       labels:
         build.commit: ${BUILD_COMMIT}
         build.date: ${BUILD_DATE}
-    image: ${DOCKER_REPO:-ndidplatform}/mock:latest
+    image: ${DOCKER_REPO:-ndidplatform}/mock:${DOCKER_TAG:-latest}
