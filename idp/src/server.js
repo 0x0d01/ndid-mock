@@ -236,6 +236,155 @@ app.post('/callback/idp/ial', async (req, res) => {
   }
 });
 
+app.post('/callback/idp/accessor', async (req, res) => {
+  try {
+    const callbackData = req.body;
+    console.log(
+      'Received add accessor callback from NDID API:',
+      JSON.stringify(callbackData, null, 2)
+    );
+
+    if (callbackData.type === 'add_accessor_result') {
+      if (callbackData.success) {
+        const {
+          namespace,
+          identifier,
+          accessor_id,
+          accessor_public_key,
+          accessor_private_key,
+        } = db.getReference(callbackData.reference_id);
+
+        const user = db.getUserByIdentifier(namespace, identifier);
+        db.updateUser(namespace, identifier, {
+          accessorIds: user.accessorIds.concat(accessor_id),
+        });
+        db.addAccessor(accessor_id, {
+          reference_group_code: user.reference_group_code,
+          accessor_private_key,
+          accessor_public_key,
+        });
+      }
+      db.removeReference(callbackData.reference_id);
+    } else {
+      throw new Error('Unkonwn callback type: ' + callbackData.type);
+    }
+
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).end();
+  }
+});
+
+app.post('/callback/idp/accessor_revoke', async (req, res) => {
+  try {
+    const callbackData = req.body;
+    console.log(
+      'Received accessor revoke callback from NDID API:',
+      JSON.stringify(callbackData, null, 2)
+    );
+
+    if (callbackData.type === 'revoke_accessor_result') {
+      if (callbackData.success) {
+        const {
+          namespace,
+          identifier,
+          accessor_id,
+        } = db.getReference(callbackData.reference_id);
+
+        const user = db.getUserByIdentifier(namespace, identifier);
+        const ind = user.accessorIds.indexOf(accessor_id);
+        db.updateUser(namespace, identifier, {
+          accessorIds: user.accessorIds.slice(0, ind).concat(user.accessorIds.slice(ind + 1)),
+        });
+        db.removeAccessor(accessor_id);
+      }
+      db.removeReference(callbackData.reference_id);
+    } else {
+      throw new Error('Unkonwn callback type: ' + callbackData.type);
+    }
+
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).end();
+  }
+});
+
+app.post('/callback/idp/accessor_revoke_and_add', async (req, res) => {
+  try {
+    const callbackData = req.body;
+    console.log(
+      'Received accessor revoke and add callback from NDID API:',
+      JSON.stringify(callbackData, null, 2)
+    );
+
+    if (callbackData.type === 'revoke_and_add_accessor_result') {
+      if (callbackData.success) {
+        const {
+          namespace,
+          identifier,
+          revoking_accessor_id,
+          accessor_id,
+          accessor_public_key,
+          accessor_private_key,
+        } = db.getReference(callbackData.reference_id);
+
+        const user = db.getUserByIdentifier(namespace, identifier);
+        const ind = user.accessorIds.indexOf(revoking_accessor_id);
+        db.updateUser(namespace, identifier, {
+          accessorIds: user.accessorIds.slice(0, ind).concat(user.accessorIds.slice(ind + 1), accessor_id),
+        });
+        db.removeAccessor(revoking_accessor_id);
+        db.addAccessor(accessor_id, {
+          reference_group_code: user.reference_group_code,
+          accessor_private_key,
+          accessor_public_key,
+        });
+      }
+      db.removeReference(callbackData.reference_id);
+    } else {
+      throw new Error('Unkonwn callback type: ' + callbackData.type);
+    }
+
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).end();
+  }
+});
+  
+app.post('/callback/idp/association_revoke', async (req, res) => {
+  try {
+    const callbackData = req.body;
+    console.log(
+      'Received association revoke callback from NDID API:',
+      JSON.stringify(callbackData, null, 2)
+    );
+
+    if (callbackData.type === 'revoke_identity_association_result') {
+      if (callbackData.success) {
+        const {
+          namespace,
+          identifier,
+        } = db.getReference(callbackData.reference_id);
+
+        const user = db.getUserByIdentifier(namespace, identifier);
+        user.accessorIds.forEach((accessor_id) => db.removeAccessor(accessor_id));
+        db.removeUser(namespace, identifier);
+      }
+      db.removeReference(callbackData.reference_id);
+    } else {
+      throw new Error('Unkonwn callback type: ' + callbackData.type);
+    }
+
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).end();
+  }
+});
+
 app.post('/callback/idp/response', async (req, res) => {
   try {
     const callbackData = req.body;
@@ -371,6 +520,218 @@ app.post('/updateIdentity', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json(error.error ? error.error.message : error);
+  }
+});
+
+app.post('/identity/:namespace/:identifier/association_revoke', async (req, res) => {
+  try {
+    const { namespace, identifier } = req.params;
+    const { reference_id } = req.body;
+    const user = db.getUserByIdentifier(namespace, identifier);
+    if (!user) {
+      res.status(400).json({error: 'Unknown SID'});
+      return;
+    }
+
+    const refId = reference_id || uuid();
+    db.addOrUpdateReference(refId, {
+      namespace,
+      identifier,
+    });
+
+    try {
+      const json = await API.revokeAssociation(namespace, identifier, {
+        reference_id: refId,
+        callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/association_revoke`,
+      });
+
+      res.status(202).json(json).end();
+    } catch (error) {
+      db.removeReference(reference_id);
+      throw error;
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(error.status).json(error.error ? error.error.message : error);
+  }
+});
+
+app.post('/identity/:namespace/:identifier/accessor_revoke', async (req, res) => {
+  try {
+    const { namespace, identifier } = req.params;
+    const { reference_id, accessor_id } = req.body;
+    const user = db.getUserByIdentifier(namespace, identifier);
+    if (!user) {
+      res.status(400).json({error: 'Unknown SID'});
+      return;
+    }
+
+    const refId = reference_id || uuid();
+    db.addOrUpdateReference(refId, {
+      namespace,
+      identifier,
+      accessor_id
+    });
+
+    try {
+      const json = await API.revokeAccessor(namespace, identifier, {
+        reference_id: refId,
+        callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/accessor_revoke`,
+        accessor_id,
+      });
+
+      res.status(202).json(json).end();
+    } catch (error) {
+      db.removeReference(reference_id);
+      throw error;
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(error.status).json(error.error ? error.error.message : error);
+  }
+});
+
+app.post('/identity/:namespace/:identifier/accessors', async (req, res) => {
+  try {
+    const { namespace, identifier } = req.params;
+    const { accessor_id, accessor_type, reference_id } = req.body;
+    const user = db.getUserByIdentifier(namespace, identifier);
+    if (!user) {
+      res.status(400).json({error: 'Unknown SID'});
+      return;
+    }
+
+    const sid = namespace + ':' + identifier;
+    
+    //gen new key pair
+    utils.genNewKeyPair(sid);
+
+    const accessor_public_key = fs.readFileSync(
+      config.keyPath + sid + '.pub',
+      'utf8'
+    );
+    const accessor_private_key = fs.readFileSync(config.keyPath + sid, 'utf8');
+
+    const refId = reference_id || uuid();
+    db.addOrUpdateReference(refId, {
+      namespace,
+      identifier,
+      accessor_type,
+      accessor_public_key,
+      accessor_private_key,
+    });
+
+    try {
+      const json = await API.addAccessor(namespace, identifier, {
+        reference_id: refId,
+        callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/accessor`,
+        accessor_id,
+        accessor_type,
+        accessor_public_key,
+      });
+
+      db.addOrUpdateReference(refId, {
+        accessor_id: json.accessor_id,
+      });
+
+      res.status(202).json(json).end();
+    } catch (error) {
+      db.removeReference(refId);
+      throw error;
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(error.status).json(error.error ? error.error.message : error);
+  }
+});
+
+app.post('/identity/:namespace/:identifier/ial', async (req, res) => {
+  try {
+    const { namespace, identifier } = req.params;
+    const { ial, reference_id } = req.body;
+    const user = db.getUserByIdentifier(namespace, identifier);
+    if (!user) {
+      res.status(400).json({error: 'Unknown SID'});
+      return;
+    }
+
+    const refId = reference_id || uuid();
+    db.addOrUpdateReference(refId, {
+      namespace,
+      identifier,
+      ial
+    });
+
+    try {
+      const json = await API.updateIAL(namespace, identifier, {
+        reference_id: refId,
+        callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/ial`,
+        ial,
+      });
+
+      res.status(202).json(json).end();
+    } catch (error) {
+      db.removeReference(refId);
+      throw error;
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(error.status).json(error.error ? error.error.message : error);
+  }
+});
+
+app.post('/identity/:namespace/:identifier/accessor_revoke_and_add', async (req, res) => {
+  try {
+    const { namespace, identifier } = req.params;
+    const { reference_id, revoking_accessor_id, accessor_id, accessor_type } = req.body;
+    const user = db.getUserByIdentifier(namespace, identifier);
+    if (!user) {
+      res.status(400).json({error: 'Unknown SID'});
+      return;
+    }
+
+    const sid = namespace + ':' + identifier;
+    
+    //gen new key pair
+    utils.genNewKeyPair(sid);
+
+    const accessor_public_key = fs.readFileSync(
+      config.keyPath + sid + '.pub',
+      'utf8'
+    );
+    const accessor_private_key = fs.readFileSync(config.keyPath + sid, 'utf8');
+
+    const refId = reference_id || uuid();
+    db.addOrUpdateReference(refId, {
+      namespace,
+      identifier,
+      revoking_accessor_id,
+      accessor_private_key,
+      accessor_public_key
+    });
+
+    try {
+      const json = await API.revokeAndAddAccessor(namespace, identifier, {
+        reference_id: refId,
+        callback_url: `http://${config.ndidApiCallbackIp}:${config.ndidApiCallbackPort}/callback/idp/accessor_revoke_and_add`,
+        revoking_accessor_id,
+        accessor_id,
+        accessor_type,
+        accessor_public_key,
+      });
+
+      db.addOrUpdateReference(refId, {
+        accessor_id: json.accessor_id,
+      });
+
+      res.status(202).json(json).end();
+    } catch (error) {
+      db.removeReference(reference_id);
+      throw error;
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(error.status).json(error.error ? error.error.message : error);
   }
 });
 

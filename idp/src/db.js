@@ -118,3 +118,11 @@ export function addAccessor(accessorId, accessorData) {
     })
     .write();
 }
+
+export const removeAccessor = (accessorId) => {
+  db.get('accessors')
+    .remove({
+      accessorId,
+    })
+    .write();
+};

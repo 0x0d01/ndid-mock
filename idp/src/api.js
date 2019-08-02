@@ -26,7 +26,7 @@ export async function httpGet(url) {
       if (response.status === 400 || response.status === 500) {
         const errorJson = await response.json();
         logResponse(url, 'GET', response.status, null, errorJson);
-        throw errorJson;
+        throw { status: response.status, body: errorJson };
       }
       throw response;
     }
@@ -59,7 +59,7 @@ export async function httpPost(url, body, expectResponseBody) {
       ) {
         const errorJson = await response.json();
         logResponse(url, 'POST', response.status, null, errorJson);
-        throw errorJson;
+        throw { status: response.status, body: errorJson };
       }
       throw response;
     }
@@ -123,14 +123,6 @@ export function createNewIdentity(data) {
   return httpPost(`${apiBaseUrl}/identity`, data, true);
 }
 
-export function addAccessor(data) {
-  return httpPost(
-    `${apiBaseUrl}/identity/${data.namespace}/${data.identifier}/accessors`,
-    data,
-    true
-  );
-}
-
 export function updateMode(data) {
   return httpPost(
     `${apiBaseUrl}/identity/${data.namespace}/${data.identifier}/mode`,
@@ -160,3 +152,36 @@ export function getRequestMessagePaddedHash(request_id, accessor_id) {
     `${apiBaseUrl}/idp/request_message_padded_hash?request_id=${request_id}&accessor_id=${accessor_id}`
   );
 }
+
+export function addAccessor(namespace, identifier, data) {
+  return httpPost(
+    `${apiBaseUrl}/identity/${namespace}/${identifier}/accessors`,
+    data,
+    true
+  );
+}
+
+export function revokeAccessor(namespace, identifier, data) {
+  return httpPost(
+    `${apiBaseUrl}/identity/${namespace}/${identifier}/accessor_revoke`,
+    data,
+    false
+  );
+}
+
+export function revokeAndAddAccessor(namespace, identifier, data) {
+  return httpPost(
+    `${apiBaseUrl}/identity/${namespace}/${identifier}/accessor_revoke_and_add`,
+    data,
+    true
+  );
+}
+
+export function revokeAssociation(namespace, identifier, data) {
+  return httpPost(
+    `${apiBaseUrl}/identity/${namespace}/${identifier}/association_revoke`,
+    data,
+    false
+  );
+}
+
