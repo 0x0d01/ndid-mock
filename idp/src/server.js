@@ -771,7 +771,7 @@ app.post('/identity', async (req, res) => {
     
   } catch (error) {
     console.error(error);
-    res.status(500).json(error.error ? error.error.message : error);
+    res.status(error.status).json(error.error ? error.error.message : error);
   }
 });
 
